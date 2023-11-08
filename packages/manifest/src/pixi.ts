@@ -30,6 +30,7 @@ export interface PixiManifestOptions extends BaseManifestOptions
 {
     createShortcuts?: boolean;
     trimExtensions?: boolean;
+    ignoreFileExtensions?: string[];
     defaultParser: ManifestParser<'copy', PixiManifestOptions>;
     parsers: ManifestParser<any, PixiManifestOptions>[];
 }
@@ -57,6 +58,7 @@ export function pixiManifest2(
     const defaultOptions: PixiManifestOptions = {
         createShortcuts: false,
         trimExtensions: false,
+        ignoreFileExtensions: [],
         defaultParser: { type: 'copy', parser: defaultPixiParser },
         parsers: [],
         ...options,
@@ -172,13 +174,27 @@ function collect(
                 ) as PixiManifestEntry[];
         }
 
-        result.forEach((entry) =>
+        const hasIgnoreFileExtensions
+            = options.ignoreFileExtensions !== undefined
+            && options.ignoreFileExtensions.length > 0;
+
+        result.forEach((entry, index) =>
         {
-            if (
-                !entry.data?.tags
-                && (Object.keys(tree.fileTags).length > 0
-                    || Object.keys(tree.pathTags).length > 0)
-            )
+            if (hasIgnoreFileExtensions)
+            {
+                if (
+                    options.ignoreFileExtensions?.some((extensionName) =>
+                        entry.srcs[0].endsWith(extensionName)
+                    )
+                )
+                {
+                    result.splice(index, 1);
+
+                    return;
+                }
+            }
+
+            if (!entry.data?.tags && (Object.keys(tree.fileTags).length > 0 || Object.keys(tree.pathTags).length > 0))
             {
                 entry.data = entry.data || ({} as PixiManifestEntry['data']);
                 entry.data!.tags = {
